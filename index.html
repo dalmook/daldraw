@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>재미있는 따라그리기 게임!</title>
+    <style>
+        body {
+            font-family: 'Arial Rounded MT Bold', Arial, sans-serif;
+            background-color: #F0F9FF;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        #gameContainer {
+            position: relative;
+            margin: 20px;
+        }
+
+        #mainCanvas {
+            border: 3px solid #FFB200;
+            border-radius: 15px;
+            background-color: white;
+            box-shadow: 0 0 15px rgba(255, 178, 0, 0.3);
+        }
+
+        .difficulty-btns {
+            margin: 20px 0;
+        }
+
+        button {
+            padding: 12px 24px;
+            margin: 0 10px;
+            border: none;
+            border-radius: 25px;
+            font-size: 18px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        button:hover {
+            transform: scale(1.1);
+        }
+
+        #easyBtn { background-color: #8CE99A; }
+        #mediumBtn { background-color: #FFD43B; }
+        #hardBtn { background-color: #FF8787; }
+
+        #scoreDisplay {
+            font-size: 24px;
+            color: #2B8A3E;
+            margin: 15px 0;
+        }
+
+        #targetShape {
+            border: 2px dashed #4D4D4D;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+
+        .result-popup {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.2);
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎨 신나는 따라그리기 대회! 🎨</h1>
+    
+    <div class="difficulty-btns">
+        <button id="easyBtn" onclick="setDifficulty('easy')">쉬움</button>
+        <button id="mediumBtn" onclick="setDifficulty('medium')">중간</button>
+        <button id="hardBtn" onclick="setDifficulty('hard')">어려움</button>
+    </div>
+
+    <div id="gameContainer">
+        <canvas id="mainCanvas" width="600" height="400"></canvas>
+        <canvas id="targetShape" width="150" height="150"></canvas>
+    </div>
+
+    <div id="scoreDisplay">점수: 0점</div>
+    <button onclick="startGame()" style="background-color: #74C0FC;">시작하기!</button>
+
+    <div class="result-popup" id="resultPopup">
+        <h2 id="resultText"></h2>
+        <button onclick="closePopup()">다시 도전!</button>
+    </div>
+
+    <script>
+        let ctx, targetCtx;
+        let isDrawing = false;
+        let userPoints = [];
+        let currentDifficulty = 'easy';
+        let targetShapePoints = [];
+
+        window.onload = function() {
+            const mainCanvas = document.getElementById('mainCanvas');
+            const targetCanvas = document.getElementById('targetShape');
+            ctx = mainCanvas.getContext('2d');
+            targetCtx = targetCanvas.getContext('2d');
+            
+            // 캔버스 드로잉 이벤트 설정
+            mainCanvas.addEventListener('mousedown', startDrawing);
+            mainCanvas.addEventListener('mousemove', draw);
+            mainCanvas.addEventListener('mouseup', stopDrawing);
+            mainCanvas.addEventListener('mouseout', stopDrawing);
+        };
+
+        function setDifficulty(difficulty) {
+            currentDifficulty = difficulty;
+            startGame();
+        }
+
+        function startGame() {
+            ctx.clearRect(0, 0, 600, 400);
+            targetCtx.clearRect(0, 0, 150, 150);
+            userPoints = [];
+            generateShape();
+        }
+
+        function generateShape() {
+            const shapes = {
+                easy: ['square', 'triangle'],
+                medium: ['circle', 'star'],
+                hard: ['hexagon', 'heart']
+            };
+
+            const selectedShape = shapes[currentDifficulty][Math.floor(Math.random() * shapes[currentDifficulty].length)];
+            drawTarget(selectedShape);
+        }
+
+        function drawTarget(shape) {
+            targetCtx.clearRect(0, 0, 150, 150);
+            targetCtx.beginPath();
+
+            switch(shape) {
+                case 'square':
+                    targetCtx.rect(30, 30, 90, 90);
+                    break;
+                case 'triangle':
+                    targetCtx.moveTo(75, 30);
+                    targetCtx.lineTo(30, 120);
+                    targetCtx.lineTo(120, 120);
+                    targetCtx.closePath();
+                    break;
+                case 'circle':
+                    targetCtx.arc(75, 75, 50, 0, Math.PI * 2);
+                    break;
+                case 'star':
+                    drawStar(targetCtx, 75, 75, 5, 50, 20);
+                    break;
+                case 'hexagon':
+                    drawPolygon(targetCtx, 75, 75, 6, 50);
+                    break;
+                case 'heart':
+                    drawHeart(targetCtx);
+                    break;
+            }
+
+            targetCtx.strokeStyle = '#FF6B6B';
+            targetCtx.lineWidth = 3;
+            targetCtx.stroke();
+        }
+
+        // 드로잉 관련 함수들
+        function startDrawing(e) {
+            isDrawing = true;
+            ctx.beginPath();
+            ctx.moveTo(e.offsetX, e.offsetY);
+            userPoints.push({x: e.offsetX, y: e.offsetY});
+        }
+
+        function draw(e) {
+            if (!isDrawing) return;
+            ctx.lineTo(e.offsetX, e.offsetY);
+            ctx.strokeStyle = '#4DABF7';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+            userPoints.push({x: e.offsetX, y: e.offsetY});
+        }
+
+        function stopDrawing() {
+            if (isDrawing) {
+                calculateScore();
+            }
+            isDrawing = false;
+        }
+
+        function calculateScore() {
+            // 간단한 유사도 계산 (실제 구현시 더 정교한 알고리즘 필요)
+            const similarity = Math.max(0, 100 - (userPoints.length * 0.1));
+            document.getElementById('scoreDisplay').textContent = `점수: ${Math.round(similarity)}점`;
+            
+            // 결과 팝업 표시
+            const resultPopup = document.getElementById('resultPopup');
+            const resultText = document.getElementById('resultText');
+            resultText.innerHTML = `🎉 ${Math.round(similarity)}점!<br>잘했어요!`;
+            resultPopup.style.display = 'block';
+        }
+
+        function closePopup() {
+            document.getElementById('resultPopup').style.display = 'none';
+            startGame();
+        }
+
+        // 도형 그리기 도우미 함수
+        function drawStar(ctx, cx, cy, spikes, outerRadius, innerRadius) {
+            let rot = Math.PI / 2 * 3;
+            const step = Math.PI / spikes;
+
+            ctx.moveTo(cx, cy - outerRadius);
+            for (let i = 0; i < spikes; i++) {
+                ctx.lineTo(cx + Math.cos(rot) * outerRadius, cy + Math.sin(rot) * outerRadius);
+                rot += step;
+                ctx.lineTo(cx + Math.cos(rot) * innerRadius, cy + Math.sin(rot) * innerRadius);
+                rot += step;
+            }
+            ctx.closePath();
+        }
+
+        function drawPolygon(ctx, cx, cy, sides, radius) {
+            ctx.moveTo(cx + radius, cy);
+            for (let i = 1; i <= sides; i++) {
+                const angle = (i * 2 * Math.PI) / sides;
+                ctx.lineTo(cx + radius * Math.cos(angle), cy + radius * Math.sin(angle));
+            }
+            ctx.closePath();
+        }
+
+        function drawHeart(ctx) {
+            ctx.moveTo(75, 90);
+            ctx.bezierCurveTo(75, 50, 30, 30, 30, 60);
+            ctx.bezierCurveTo(30, 90, 75, 120, 75, 150);
+            ctx.bezierCurveTo(75, 120, 120, 90, 120, 60);
+            ctx.bezierCurveTo(120, 30, 75, 50, 75, 90);
+            ctx.closePath();
+        }
+    </script>
+</body>
+</html>
